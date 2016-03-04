@@ -24,29 +24,15 @@ func GenerateMessage(schema string) string {
 }
 
 func recursivelyPopulate(schema map[string]interface{}, parsed map[string]interface{}) {
-	valName := schema["name"].(string)
+	var valName string
+	if schema["name"] != nil {
+		valName = schema["name"].(string)
+	}
 
 	switch schema["type"].(type) {
 	case []interface{}:
-		valType := schema["type"].([]interface{})
-		index := rand.Intn(len(valType))
-		selectedType := valType[index]
-		switch reflect.TypeOf(selectedType).String() {
-		case "string":
-			subMap := make(map[string]interface{})
-			stringType := selectedType.(string)
-			subMap[stringType] = generateValueForType(stringType)
-			parsed[valName] = subMap
-		default:
-			parsed[valName] = make(map[string]interface{})
-			subMap := make(map[string]interface{})
-			typeMap := selectedType.(map[string]interface{})
-			typeKey := typeMap["type"].(string)
-			subMap[typeKey] = make(map[string]interface{})
-			parsed[valName] = subMap
-			recursivelyPopulate(selectedType.(map[string]interface{}), subMap[typeKey].(map[string]interface{}))
-		}
-	default:
+		handleUnion(schema, parsed, schema["type"].([]interface{}))
+	case string:
 		valType := schema["type"].(string)
 
 		switch valType {
@@ -57,11 +43,27 @@ func recursivelyPopulate(schema map[string]interface{}, parsed map[string]interf
 				recursivelyPopulate(fields[i].(map[string]interface{}), parsed[valName].(map[string]interface{}))
 			}
 		case "array":
-			subType := schema["items"].(string)
+			subType := schema["items"]
 			arrLen := rand.Intn(10)
 			arr := make([]interface{}, arrLen)
-			for i, _ := range arr {
-				arr[i] = generateValueForType(subType)
+
+			switch subType.(type) {
+			case string:
+				for i, _ := range arr {
+					arr[i] = generateValueForType(subType.(string))
+				}
+			case []interface{}:
+				for i, _ := range arr {
+					arrMap := make(map[string]interface{})
+					arr[i] = arrMap
+					handleUnion(schema, arrMap, subType.([]interface{}))
+				}
+			default:
+				for i, _ := range arr {
+					arrMap := make(map[string]interface{})
+					arr[i] = arrMap
+					recursivelyPopulate(subType.(map[string]interface{}), arrMap)
+				}
 			}
 			parsed[valName] = arr
 		case "fixed":
@@ -71,18 +73,54 @@ func recursivelyPopulate(schema map[string]interface{}, parsed map[string]interf
 			index := rand.Intn(len(symbols))
 			parsed[valName] = symbols[index].(string)
 		case "map":
-			mapType := schema["values"].(string)
-			subMap := make(map[string]interface{})
-			numKeys := rand.Intn(10)
-			for i := 0; i < numKeys; i++ {
-				key := generateValueForType("string").(string)
-				subMap[key] = generateValueForType(mapType)
+			switch schema["values"].(type) {
+			case []interface{}:
+				handleUnion(schema, parsed, schema["values"].([]interface{}))
+			default:
+				mapType := schema["values"].(string)
+				subMap := make(map[string]interface{})
+				numKeys := rand.Intn(10)
+				for i := 0; i < numKeys; i++ {
+					key := generateValueForType("string").(string)
+					subMap[key] = generateValueForType(mapType)
+				}
+				parsed[valName] = subMap
 			}
-			parsed[valName] = subMap
+
 		default:
 			parsed[valName] = generateValueForType(valType)
 		}
+	default:
+		valType := schema["type"].(map[string]interface{})
+		parsed[valName] = make(map[string]interface{})
+		recursivelyPopulate(valType, parsed[valName].(map[string]interface{}))
 	}
+
+}
+
+func handleUnion(schema map[string]interface{}, parsed map[string]interface{}, valType []interface{}) {
+	var valName string
+	if schema["name"] != nil {
+		valName = schema["name"].(string)
+	}
+	index := rand.Intn(len(valType))
+	selectedType := valType[index]
+	switch reflect.TypeOf(selectedType).String() {
+	case "string":
+		subMap := make(map[string]interface{})
+		stringType := selectedType.(string)
+		subMap[stringType] = generateValueForType(stringType)
+		parsed[valName] = subMap
+	default:
+		parsed[valName] = make(map[string]interface{})
+		subMap := make(map[string]interface{})
+		typeMap := selectedType.(map[string]interface{})
+		typeKey := typeMap["type"].(string)
+		subMap[typeKey] = make(map[string]interface{})
+		parsed[valName] = subMap
+		recursivelyPopulate(selectedType.(map[string]interface{}), subMap[typeKey].(map[string]interface{}))
+	}
+
 }
 
 func generateValueForType(valueType string, length ...int) interface{} {
