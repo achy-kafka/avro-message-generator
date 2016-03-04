@@ -1,0 +1,60 @@
+{
+  "type": "record",
+  "name": "comments",
+  "fields": [
+    {
+      "type": "string",
+      "name": "username"
+    },
+    {
+      "type": "enum",
+      "name": "comment",
+      "symbols": ["comment1", "comment2", "comment3"]
+    },
+    {
+      "type": [
+        "string",
+        {"type": "record", "name": "unionRecord", "fields": [ { "type": "string", "name": "unionRecordString" } ]},
+        {"type": "array", "name": "unionArray", "items": "boolean"}
+      ],
+      "name": "unionType"
+    },
+    {
+      "type": "long",
+      "name": "timestamp"
+    },
+    {
+      "type": "map",
+      "values": "boolean",
+      "name": "booleanMap"
+    },
+    {
+      "type": "array",
+      "items": "int",
+      "name": "intArr"
+    },
+    {
+      "type": "fixed",
+      "size": 32,
+      "name": "fixedSize32"
+    },
+    {
+      "name": "commentsRecursive",
+      "type": "record",
+      "fields": [
+        {
+          "type": "boolean",
+          "name": "isHuman"
+        },
+        {
+          "type": "float",
+          "name": "floatyMcFloat"
+        },
+        {
+          "type": "bytes",
+          "name": "byteStuff"
+        }
+      ]
+    }
+  ]
+}
